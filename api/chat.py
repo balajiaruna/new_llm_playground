@@ -1,18 +1,11 @@
-from flask import Flask, request, jsonify
+import json
 import os
 import logging
 import google.generativeai as genai
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Initialize Flask app
-app = Flask(__name__)
 
 # Initialize clients
 clients = {}
@@ -138,11 +131,36 @@ def call_google_ai(model, message, system_prompt, temperature, max_tokens, top_p
 # Initialize clients
 initialize_clients()
 
-@app.route('/api/chat', methods=['POST'])
-def chat():
-    """Handle chat requests"""
+def handler(request):
+    """Vercel serverless function handler"""
+    
+    # Set CORS headers
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Content-Type': 'application/json'
+    }
+    
+    # Handle preflight requests
+    if request.method == 'OPTIONS':
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': ''
+        }
+    
     try:
-        data = request.get_json()
+        # Parse request body
+        if hasattr(request, 'get_json'):
+            data = request.get_json()
+        else:
+            # For Vercel, parse the body manually
+            body = request.get('body', '{}')
+            if isinstance(body, str):
+                data = json.loads(body)
+            else:
+                data = body
         
         # Extract parameters
         provider = data.get('provider', 'openai')
@@ -156,7 +174,11 @@ def chat():
         
         # Validate required fields
         if not message:
-            return jsonify({'error': 'Message is required'}), 400
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Message is required'})
+            }
         
         # Call appropriate API
         if provider == 'openai':
@@ -164,10 +186,14 @@ def chat():
         elif provider == 'google':
             response_text = call_google_ai(model, message, system_prompt, temperature, max_tokens, top_p, seed)
         else:
-            return jsonify({'error': f'Unsupported provider: {provider}'}), 400
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': f'Unsupported provider: {provider}'})
+            }
         
         # Return response
-        return jsonify({
+        response_data = {
             'response': response_text,
             'model': model,
             'provider': provider,
@@ -176,38 +202,18 @@ def chat():
                 'max_tokens': max_tokens,
                 'top_p': top_p
             }
-        })
+        }
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps(response_data)
+        }
         
     except Exception as e:
         logger.error(f"Chat error: {str(e)}")
-        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
-
-@app.route('/api/models', methods=['GET'])
-def get_models():
-    """Get available models"""
-    return jsonify({
-        'openai': [
-            {'value': 'gpt-4o', 'text': 'GPT-4o'},
-            {'value': 'gpt-4o-mini', 'text': 'GPT-4o Mini'},
-            {'value': 'gpt-4-turbo', 'text': 'GPT-4 Turbo'},
-            {'value': 'gpt-4', 'text': 'GPT-4'},
-            {'value': 'gpt-3.5-turbo', 'text': 'GPT-3.5 Turbo'}
-        ],
-        'google': [
-            {'value': 'gemini-2.5-flash', 'text': 'Gemini 2.5 Flash'},
-            {'value': 'gemini-2.0-flash', 'text': 'Gemini 2.0 Flash'},
-            {'value': 'gemini-flash-latest', 'text': 'Gemini Flash Latest'},
-            {'value': 'gemini-pro-latest', 'text': 'Gemini Pro Latest'}
-        ]
-    })
-
-@app.route('/api/health', methods=['GET'])
-def health():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'available_clients': list(clients.keys())
-    })
-
-if __name__ == '__main__':
-    app.run(debug=True)
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Internal server error: {str(e)}'})
+        }
