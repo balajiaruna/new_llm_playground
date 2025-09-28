@@ -1,0 +1,14 @@
+{
+  "name": "llm-playground",
+  "version": "1.0.0",
+  "description": "LLM Playground with OpenAI and Google AI integration",
+  "main": "index.html",
+  "scripts": {
+    "dev": "python3 -m http.server 8080",
+    "build": "echo 'No build step required for static site'",
+    "start": "python3 -m http.server 8080"
+  },
+  "keywords": ["llm", "ai", "openai", "google-ai", "playground"],
+  "author": "Your Name",
+  "license": "MIT"
+}

@@ -1,0 +1,5 @@
+---
+description:Save all user prompts in chat to a txt file named user_prompts.txt
+globs:
+alwaysApply: true
+---

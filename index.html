@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My LLM Playground</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
+                <div class="app-title">
+                    <h1>My LLM Playground</h1>
+                </div>
+                <div class="model-info">
+                    <span class="model-name" id="currentModel">GPT-3.5 Turbo</span>
+                    <span class="model-params" id="currentParams">T: 0.7 | Max: 1000</span>
+                </div>
+                <div class="header-actions">
+                    <button class="header-action-btn" id="newChatBtn" title="New chat">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button class="header-action-btn" id="clearBtn" title="Clear conversation">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="header-action-btn" id="shareBtn" title="Share">
+                        <i class="fas fa-share"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Welcome Screen -->
+            <div class="welcome-screen" id="welcomeScreen">
+                <div class="welcome-content">
+                    <div class="welcome-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h1 class="welcome-title">What can I help you with today?</h1>
+                    <p class="welcome-subtitle">Ask me anything or try one of these examples:</p>
+                    
+                    <div class="example-prompts">
+                        <button class="example-prompt" data-prompt="Explain quantum computing in simple terms">
+                            <i class="fas fa-atom"></i>
+                            Explain quantum computing
+                        </button>
+                        <button class="example-prompt" data-prompt="Write a Python function to sort a list">
+                            <i class="fas fa-code"></i>
+                            Help with coding
+                        </button>
+                        <button class="example-prompt" data-prompt="Create a marketing strategy for a new app">
+                            <i class="fas fa-chart-line"></i>
+                            Business planning
+                        </button>
+                        <button class="example-prompt" data-prompt="Summarize the latest AI research trends">
+                            <i class="fas fa-brain"></i>
+                            Research summary
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Container -->
+            <div class="chat-container" id="chatContainer" style="display: none;">
+                <div class="messages" id="messages"></div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area" id="inputArea">
+                <div class="input-wrapper">
+                    <button class="input-action-btn" id="attachBtn" title="Attach file">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="Type your message here..."
+                        class="message-input"
+                        rows="1"
+                    ></textarea>
+                    <button class="input-action-btn voice-btn" id="voiceBtn" title="Voice input">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button class="send-btn" id="sendBtn" title="Send message">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="input-info">
+                    <span class="char-count" id="charCount">0 characters</span>
+                    <span class="model-info-small">Using <span id="activeModel">GPT-3.5</span></span>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Pane -->
+        <aside class="right-pane" id="rightPane">
+            <div class="right-pane-header">
+                <h3>Model Parameters</h3>
+                <button class="right-pane-toggle" id="rightPaneToggle">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            
+            <div class="right-pane-content">
+                <!-- Model Configuration Section -->
+                <div class="config-section">
+                    <div class="config-section-header">
+                        <h4>Model Configuration</h4>
+                    </div>
+                    
+                    <!-- Model Provider Selection -->
+                    <div class="settings-section">
+                        <div class="settings-label">Provider</div>
+                        <select class="provider-select" id="providerSelect">
+                            <option value="openai" selected>OpenAI</option>
+                            <option value="google">Google</option>
+                        </select>
+                    </div>
+
+                    <!-- Model Selection -->
+                    <div class="settings-section">
+                        <div class="settings-label">Model</div>
+                        <select class="model-select" id="modelSelect">
+                            <option value="gpt-4">GPT-4</option>
+                            <option value="gpt-3.5-turbo" selected>GPT-3.5 Turbo</option>
+                            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Parameters Section -->
+                <div class="config-section">
+                    <div class="config-section-header">
+                        <h4>Parameters</h4>
+                    </div>
+
+                    <!-- Temperature -->
+                    <div class="settings-section">
+                        <div class="settings-label">
+                            Temperature: <span id="tempValue">0.7</span>
+                        </div>
+                        <input type="range" class="parameter-slider" id="temperatureSlider" 
+                               min="0" max="2" step="0.1" value="0.7">
+                        <div class="slider-labels">
+                            <span>Focused</span>
+                            <span>Creative</span>
+                        </div>
+                    </div>
+
+                    <!-- Max Tokens -->
+                    <div class="settings-section">
+                        <div class="settings-label">
+                            Max Tokens: <span id="tokensValue">1000</span>
+                        </div>
+                        <input type="range" class="parameter-slider" id="maxTokensSlider" 
+                               min="1" max="4000" step="50" value="1000">
+                    </div>
+
+                    <!-- Top P -->
+                    <div class="settings-section">
+                        <div class="settings-label">
+                            Top P: <span id="topPValue">1.0</span>
+                        </div>
+                        <input type="range" class="parameter-slider" id="topPSlider" 
+                               min="0" max="1" step="0.1" value="1.0">
+                    </div>
+
+                    <!-- Seed -->
+                    <div class="settings-section">
+                        <div class="settings-label">Seed</div>
+                        <input type="number" class="parameter-input" id="seedInput" 
+                               placeholder="Random" min="0" max="2147483647">
+                        <button class="random-seed-btn" id="randomSeedBtn">
+                            <i class="fas fa-dice"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Advanced Section -->
+                <div class="config-section">
+                    <div class="config-section-header">
+                        <h4>Advanced</h4>
+                    </div>
+
+                    <!-- System Prompt -->
+                    <div class="settings-section">
+                        <div class="settings-label">System Prompt</div>
+                        <textarea class="system-prompt" id="systemPrompt" 
+                                  placeholder="Enter system prompt here..." rows="4"></textarea>
+                    </div>
+
+                    <!-- API Key -->
+                    <div class="settings-section">
+                        <div class="settings-label">API Key</div>
+                        <input type="password" class="api-key-input" id="apiKeyInput" 
+                               placeholder="Enter your API key">
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="settings-actions">
+                    <button class="settings-btn primary" id="saveSettingsBtn">
+                        <i class="fas fa-save"></i>
+                        Save Settings
+                    </button>
+                    <button class="settings-btn" id="resetSettingsBtn">
+                        <i class="fas fa-undo"></i>
+                        Reset
+                    </button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+
+    <script src="script.js"></script>
+</body>
+</html>
