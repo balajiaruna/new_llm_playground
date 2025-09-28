@@ -1,3 +1,4 @@
+from http.server import BaseHTTPRequestHandler
 import json
 import os
 import logging
@@ -131,89 +132,77 @@ def call_google_ai(model, message, system_prompt, temperature, max_tokens, top_p
 # Initialize clients
 initialize_clients()
 
-def handler(request):
-    """Vercel serverless function handler"""
+class handler(BaseHTTPRequestHandler):
+    def do_OPTIONS(self):
+        """Handle preflight requests"""
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
     
-    # Set CORS headers
-    headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Content-Type': 'application/json'
-    }
-    
-    # Handle preflight requests
-    if request.method == 'OPTIONS':
-        return {
-            'statusCode': 200,
-            'headers': headers,
-            'body': ''
-        }
-    
-    try:
-        # Parse request body
-        if hasattr(request, 'get_json'):
-            data = request.get_json()
-        else:
-            # For Vercel, parse the body manually
-            body = request.get('body', '{}')
-            if isinstance(body, str):
-                data = json.loads(body)
+    def do_POST(self):
+        """Handle POST requests"""
+        try:
+            # Read request body
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            data = json.loads(post_data.decode('utf-8'))
+            
+            # Extract parameters
+            provider = data.get('provider', 'openai')
+            model = data.get('model', 'gpt-3.5-turbo')
+            message = data.get('message', '')
+            system_prompt = data.get('system_prompt', '')
+            temperature = float(data.get('temperature', 0.7))
+            max_tokens = int(data.get('max_tokens', 1000))
+            top_p = float(data.get('top_p', 1.0))
+            seed = data.get('seed')
+            
+            # Validate required fields
+            if not message:
+                self.send_response(400)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': 'Message is required'}).encode())
+                return
+            
+            # Call appropriate API
+            if provider == 'openai':
+                response_text = call_openai(model, message, system_prompt, temperature, max_tokens, top_p, seed)
+            elif provider == 'google':
+                response_text = call_google_ai(model, message, system_prompt, temperature, max_tokens, top_p, seed)
             else:
-                data = body
-        
-        # Extract parameters
-        provider = data.get('provider', 'openai')
-        model = data.get('model', 'gpt-3.5-turbo')
-        message = data.get('message', '')
-        system_prompt = data.get('system_prompt', '')
-        temperature = float(data.get('temperature', 0.7))
-        max_tokens = int(data.get('max_tokens', 1000))
-        top_p = float(data.get('top_p', 1.0))
-        seed = data.get('seed')
-        
-        # Validate required fields
-        if not message:
-            return {
-                'statusCode': 400,
-                'headers': headers,
-                'body': json.dumps({'error': 'Message is required'})
+                self.send_response(400)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': f'Unsupported provider: {provider}'}).encode())
+                return
+            
+            # Return response
+            response_data = {
+                'response': response_text,
+                'model': model,
+                'provider': provider,
+                'usage': {
+                    'temperature': temperature,
+                    'max_tokens': max_tokens,
+                    'top_p': top_p
+                }
             }
-        
-        # Call appropriate API
-        if provider == 'openai':
-            response_text = call_openai(model, message, system_prompt, temperature, max_tokens, top_p, seed)
-        elif provider == 'google':
-            response_text = call_google_ai(model, message, system_prompt, temperature, max_tokens, top_p, seed)
-        else:
-            return {
-                'statusCode': 400,
-                'headers': headers,
-                'body': json.dumps({'error': f'Unsupported provider: {provider}'})
-            }
-        
-        # Return response
-        response_data = {
-            'response': response_text,
-            'model': model,
-            'provider': provider,
-            'usage': {
-                'temperature': temperature,
-                'max_tokens': max_tokens,
-                'top_p': top_p
-            }
-        }
-        
-        return {
-            'statusCode': 200,
-            'headers': headers,
-            'body': json.dumps(response_data)
-        }
-        
-    except Exception as e:
-        logger.error(f"Chat error: {str(e)}")
-        return {
-            'statusCode': 500,
-            'headers': headers,
-            'body': json.dumps({'error': f'Internal server error: {str(e)}'})
-        }
+            
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(response_data).encode())
+            
+        except Exception as e:
+            logger.error(f"Chat error: {str(e)}")
+            self.send_response(500)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': f'Internal server error: {str(e)}'}).encode())
